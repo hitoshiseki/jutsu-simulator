@@ -1,0 +1,206 @@
+//
+//  BlowScene.m
+//  NarutoJutsusOnHand
+//
+//  Created by Hitoshi Yanaguibashi on 13/04/15.
+//  Copyright 2015 Apportable. All rights reserved.
+//
+
+#import "BlowScene.h"
+#import "BlowInstructionsScene.h"
+
+@implementation BlowScene
+
++(BlowScene *) scene {
+    return [[self alloc] init];
+}
+
+-(id) initWithParticle:(CCParticleSystem *)particle andType:(int)type {
+    
+    self = [super init];
+    
+    if (!self) return nil;
+    
+    powerType = type;
+    
+    CCSpriteFrame *backNormal = [CCSpriteFrame frameWithImageNamed:@"Back.png"];
+    back = [CCButton buttonWithTitle:@"" spriteFrame:backNormal];
+    [back setTarget:self selector:@selector(gotoMenu)];
+    back.cascadeOpacityEnabled = YES;
+    [Util resizeNode:back To:50];
+    
+    CCSpriteFrame *infoNormal = [CCSpriteFrame frameWithImageNamed:@"info.png"];
+    info = [CCButton buttonWithTitle:@"" spriteFrame:infoNormal];
+    info.cascadeOpacityEnabled = YES;
+    [Util resizeNode:info To:50];
+    [info setTarget:self selector:@selector(showInfo)];
+    [self showInfo];
+    
+    /*
+     POSITION, SCALE, OPACITY
+     */
+    CGSize winSize = [[CCDirector sharedDirector] viewSize];
+    
+    mainParticle = particle;
+    mainParticle.anchorPoint = ccp(0.5f, 0.0f);
+    mainParticle.position = ccp(winSize.width/2, 30.0f);
+    particleState = kPARTICLE_STATE_ACTIVE;
+    [self changeParticleToStandBy];
+    
+    back.position = ccp(back.contentSize.width * back.scaleX/2 + 5, back.contentSize.height*back.scaleY/2 + 5);
+    info.position = ccp(winSize.width - info.contentSize.width * info.scaleX/2 - 5, info.contentSize.height*info.scaleY/2 + 5);
+
+    
+    /*
+     ACTIONS
+     */
+    
+    
+    /*
+     CHILDREN
+     */
+    
+    [self addChild:back z:4];
+    [self addChild:info z:4];
+    
+    return self;
+}
+
+-(void) showInfo {
+    CCActionFadeTo *fade = [CCActionFadeTo actionWithDuration:0.02f opacity:back.opacity];
+    [info runAction:fade];
+    CGSize size = [[CCDirector sharedDirector] viewSize];
+    BlowInstructionsScene *instructions = [BlowInstructionsScene scene];
+    instructions.anchorPoint = CGPointMake(0.5f, 0.5f);
+    instructions.position = ccp(size.width/2, size.height/2);
+    [self addChild:instructions z:5];
+}
+
+-(void) gotoMenu {
+    [Util playSoundButton];
+    [self stopAllActions];
+    [[CCDirector sharedDirector] popSceneWithTransition:[CCTransition transitionPushWithDirection:CCTransitionDirectionRight duration:ANIMATION_DURATION]];
+}
+
+-(void)onEnter {
+    [super onEnter];
+    self.userInteractionEnabled = YES;
+    isFirstTime = YES;
+    [[AVAudioSession sharedInstance] setCategory: AVAudioSessionCategorySoloAmbient error: nil];
+}
+
+- (void)levelTimerCallback:(NSTimer *)timer {
+    [recorder updateMeters];
+    
+    const double ALPHA = 0.05;
+    double peakPowerForChannel = pow(10, (0.05 * [recorder peakPowerForChannel:0]));
+    lowPassResults = ALPHA * peakPowerForChannel + (1.0 - ALPHA) * lowPassResults;
+    NSLog(@"%f", lowPassResults);
+    if (lowPassResults > 0.85 && isTouching) {
+        [self changeParticleToActive];
+        NSLog(@"Mic blow detected");
+    } else {
+        if (isTouching) {
+            [self changeParticleToStandBy];
+            NSLog(@"Not Blowing");
+        }
+    }
+}
+
+-(void) changeParticleToStandBy {
+    NSLog(@"Super");
+}
+
+-(void) changeParticleToActive {
+    NSLog(@"super");
+}
+
+-(void)touchBegan:(CCTouch *)touch withEvent:(CCTouchEvent *)event {
+    if (!mainParticle.parent) {
+        [self addChild:mainParticle z:2];
+    }
+    [[OALSimpleAudio sharedInstance].backgroundTrack setVolume:1.0f];
+    isTouching = YES;
+    back.opacity = 0.0f;
+    info.opacity = 0.0f;
+    CGPoint location = [touch locationInNode:self];
+    CGSize winSize = [[CCDirector sharedDirector] viewSize];
+    mainParticle.sourcePosition = ccp(location.x - winSize.width/2, location.y);
+    
+    if (isFirstTime) {
+        isFirstTime = NO;
+//        [Util playReadySoundFor:KATON];
+//        if ([selectorTimer isValid]) {
+//            [selectorTimer invalidate];
+//        }
+//        selectorTimer = [NSTimer scheduledTimerWithTimeInterval:3.0f target:self selector:@selector(configureAudioSession) userInfo:nil repeats:NO];
+    } else {
+//        [self configureAudioSession];
+    }
+    [Util playReadySoundFor:KATON];
+    if ([selectorTimer isValid]) {
+        [selectorTimer invalidate];
+    }
+    selectorTimer = [NSTimer scheduledTimerWithTimeInterval:3.0f target:self selector:@selector(configureAudioSession) userInfo:nil repeats:NO];
+
+//    [self performSelector:@selector(configureAudioSession) withObject:nil afterDelay:3.0f];
+}
+
+-(void) configureAudioSession {
+    [Util vibrate];
+    [[AVAudioSession sharedInstance] setCategory: AVAudioSessionCategoryMultiRoute error: nil];
+    NSURL *url = [NSURL fileURLWithPath:@"/dev/null"];
+    
+    NSDictionary *settings = [NSDictionary dictionaryWithObjectsAndKeys:
+                              [NSNumber numberWithFloat: 44100.0],                 AVSampleRateKey,
+                              [NSNumber numberWithInt: kAudioFormatAppleLossless], AVFormatIDKey,
+                              [NSNumber numberWithInt: 1],                         AVNumberOfChannelsKey,
+                              [NSNumber numberWithInt: AVAudioQualityMax],         AVEncoderAudioQualityKey,
+                              nil];
+    NSError *error;
+    
+    recorder = [[AVAudioRecorder alloc] initWithURL:url settings:settings error:&error];
+    
+    if (recorder) {
+        [recorder prepareToRecord];
+        recorder.meteringEnabled = YES;
+        [recorder record];
+        if ([levelTimer isValid]) {
+            [levelTimer invalidate];
+        }
+        levelTimer = [NSTimer scheduledTimerWithTimeInterval: 0.001 target: self selector: @selector(levelTimerCallback:) userInfo: nil repeats: YES];
+    } else
+        NSLog(@"%@", [error description]);
+}
+
+-(void)touchMoved:(CCTouch *)touch withEvent:(CCTouchEvent *)event {
+    isTouching = YES;
+    CGPoint location = [touch locationInNode:self];
+    CGSize winSize = [[CCDirector sharedDirector] viewSize];
+    mainParticle.sourcePosition = ccp(location.x - winSize.width/2, location.y);
+}
+
+-(void)touchEnded:(CCTouch *)touch withEvent:(CCTouchEvent *)event {
+    [mainParticle removeFromParent];
+
+        [[AVAudioSession sharedInstance] setCategory: AVAudioSessionCategorySoloAmbient error: nil];
+        isTouching = NO;
+        back.opacity = 1.0f;
+        info.opacity = 1.0f;
+        [self changeParticleToStandBy];
+        
+        //Evitar que a fala continue e entre em conflito com o som captado pelo mic
+        if ([selectorTimer isValid]) {
+            [selectorTimer invalidate];
+            isFirstTime = YES;
+            [Util stopAllSounds];
+        }
+        
+        //Evitar que o mic fique captando som
+        if ([levelTimer isValid]) {
+            [levelTimer invalidate];
+            lowPassResults = 0;
+        }
+}
+
+@end

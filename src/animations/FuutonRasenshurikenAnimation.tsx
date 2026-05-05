@@ -228,7 +228,7 @@ export const FuutonRasenshurikenAnimation = React.forwardRef<FuutonRasenshuriken
             playSound(throw2SoundRef.current);
 
             Animated.spring(animScale, {
-                toValue: 3.0,
+                toValue: 3.5,
                 damping: 6,
                 stiffness: 80,
                 useNativeDriver: true,

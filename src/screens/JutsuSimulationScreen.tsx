@@ -11,11 +11,12 @@ import { SoundToggle } from '@/components/SoundToggle';
 import { RasenganTutorial, checkRasenganTutorialSeen } from '@/components/RasenganTutorial';
 import { ChidoriTutorial, checkChidoriTutorialSeen } from '@/components/ChidoriTutorial';
 import { FuutonRasenshurikenTutorial, checkFuutonRasenshurikenTutorialSeen } from '@/components/FuutonRasenshurikenTutorial';
+import { KatonTutorial, checkKatonTutorialSeen } from '@/components/KatonTutorial';
 import { RasenganAnimation, type RasenganAnimationRef } from '@/animations/RasenganAnimation';
 import { ChidoriAnimation, type ChidoriAnimationRef } from '@/animations/ChidoriAnimation';
 import { FuutonRasenshurikenAnimation, type FuutonRasenshurikenAnimationRef } from '@/animations/FuutonRasenshurikenAnimation';
 import { SharinganAnimation } from '@/animations/SharinganAnimation';
-import { KatonAnimation } from '@/animations/KatonAnimation';
+import { KatonAnimation, type KatonAnimationRef } from '@/animations/KatonAnimation';
 import { useLanguageContext } from '@/context/LanguageContext';
 import { t } from '@/i18n/translations';
 
@@ -48,7 +49,7 @@ const HAPTIC_FNS: Record<JutsuId, keyof ReturnType<typeof useHaptics>> = {
   katon: 'notificationSuccess',
 };
 
-type AnimRef = React.RefObject<RasenganAnimationRef | ChidoriAnimationRef | FuutonRasenshurikenAnimationRef | null>;
+type AnimRef = React.RefObject<RasenganAnimationRef | ChidoriAnimationRef | FuutonRasenshurikenAnimationRef | KatonAnimationRef | null>;
 
 function JutsuAnimationComponent ({ jutsuId, onPowerStart, onPowerReset, animRef, lang }: {
   jutsuId: JutsuId;
@@ -62,14 +63,14 @@ function JutsuAnimationComponent ({ jutsuId, onPowerStart, onPowerReset, animRef
     case 'chidori': return <ChidoriAnimation ref={animRef as React.RefObject<ChidoriAnimationRef>} lang={lang} onPowerStart={onPowerStart} onPowerReset={onPowerReset} />;
     case 'fuutonRasenshuriken': return <FuutonRasenshurikenAnimation ref={animRef as React.RefObject<FuutonRasenshurikenAnimationRef>} lang={lang} onPowerStart={onPowerStart} onPowerReset={onPowerReset} />;
     case 'sharingan': return <SharinganAnimation />;
-    case 'katon': return <KatonAnimation />;
+    case 'katon': return <KatonAnimation ref={animRef as React.RefObject<KatonAnimationRef>} lang={lang} onPowerStart={onPowerStart} onPowerReset={onPowerReset} />;
   }
 }
 
 // Jutsus with custom full-screen interactions (no activate button needed)
-const CUSTOM_INTERACTION_JUTSUS: JutsuId[] = ['rasengan', 'chidori', 'fuutonRasenshuriken'];
+const CUSTOM_INTERACTION_JUTSUS: JutsuId[] = ['rasengan', 'chidori', 'fuutonRasenshuriken', 'katon'];
 // Jutsus with a first-run tutorial
-const TUTORIAL_JUTSUS: JutsuId[] = ['rasengan', 'chidori', 'fuutonRasenshuriken'];
+const TUTORIAL_JUTSUS: JutsuId[] = ['rasengan', 'chidori', 'fuutonRasenshuriken', 'katon'];
 
 export const JutsuSimulationScreen: React.FC<Props> = ({ navigation, route }) => {
   const { language } = useLanguageContext();
@@ -84,7 +85,7 @@ export const JutsuSimulationScreen: React.FC<Props> = ({ navigation, route }) =>
   const nameTranslateY = useRef(new Animated.Value(-10)).current;
   const activateScale = useRef(new Animated.Value(1)).current;
   const topBarOpacity = useRef(new Animated.Value(1)).current;
-  const animRef = useRef<RasenganAnimationRef | ChidoriAnimationRef | null>(null);
+  const animRef = useRef<RasenganAnimationRef | ChidoriAnimationRef | FuutonRasenshurikenAnimationRef | KatonAnimationRef | null>(null);
 
   const [showTutorial, setShowTutorial] = useState(false);
 
@@ -102,7 +103,8 @@ export const JutsuSimulationScreen: React.FC<Props> = ({ navigation, route }) =>
     const check =
       jutsuId === 'rasengan' ? checkRasenganTutorialSeen :
         jutsuId === 'chidori' ? checkChidoriTutorialSeen :
-          checkFuutonRasenshurikenTutorialSeen;
+          jutsuId === 'fuutonRasenshuriken' ? checkFuutonRasenshurikenTutorialSeen :
+            checkKatonTutorialSeen;
     check().then(seen => {
       if (!seen) setShowTutorial(true);
     });
@@ -216,6 +218,9 @@ export const JutsuSimulationScreen: React.FC<Props> = ({ navigation, route }) =>
       )}
       {jutsuId === 'fuutonRasenshuriken' && (
         <FuutonRasenshurikenTutorial visible={showTutorial} onDismiss={() => setShowTutorial(false)} />
+      )}
+      {jutsuId === 'katon' && (
+        <KatonTutorial visible={showTutorial} onDismiss={() => setShowTutorial(false)} />
       )}
     </View>
   );

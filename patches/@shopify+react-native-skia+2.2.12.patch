@@ -1,0 +1,36 @@
+diff --git a/node_modules/@shopify/react-native-skia/lib/commonjs/external/reanimated/renderHelpers.js b/node_modules/@shopify/react-native-skia/lib/commonjs/external/reanimated/renderHelpers.js
+index 7655ab4..f984b7f 100644
+--- a/node_modules/@shopify/react-native-skia/lib/commonjs/external/reanimated/renderHelpers.js
++++ b/node_modules/@shopify/react-native-skia/lib/commonjs/external/reanimated/renderHelpers.js
+@@ -12,7 +12,8 @@ try {
+   // So it will not throw an error and we need to check the version to know if it's there.
+   const reanimatedVersion = require("react-native-reanimated/package.json").version;
+   require("react-native-reanimated");
+-  if (reanimatedVersion && (reanimatedVersion >= "3.0.0" || reanimatedVersion.includes("3.0.0-"))) {
++  const major = parseInt(reanimatedVersion.split(".")[0], 10);
++  if (reanimatedVersion && major === 3 && (reanimatedVersion >= "3.0.0" || reanimatedVersion.includes("3.0.0-"))) {
+     exports.HAS_REANIMATED_3 = HAS_REANIMATED_3 = true;
+   }
+ } catch (e) {
+diff --git a/node_modules/@shopify/react-native-skia/lib/module/external/reanimated/renderHelpers.js b/node_modules/@shopify/react-native-skia/lib/module/external/reanimated/renderHelpers.js
+index 95cd553..eadcf06 100644
+--- a/node_modules/@shopify/react-native-skia/lib/module/external/reanimated/renderHelpers.js
++++ b/node_modules/@shopify/react-native-skia/lib/module/external/reanimated/renderHelpers.js
+@@ -1,12 +1,12 @@
+ export let HAS_REANIMATED_3 = false;
+ try {
+-  // This logic is convoluted but necessary
+-  // In most systems, `require("react-native-reanimated")` throws an error, all is well.
+-  // In webpack, in some configuration it will return an empty object.
+-  // So it will not throw an error and we need to check the version to know if it's there.
++  // Patched: only enable Reanimated integration for Reanimated 3.x.
++  // Reanimated 4.x (JSI worklet runtime) is not compatible with Skia 2.2.12
++  // in Expo Go and causes "[runtime not ready]" errors.
+   const reanimatedVersion = require("react-native-reanimated/package.json").version;
+   require("react-native-reanimated");
+-  if (reanimatedVersion && (reanimatedVersion >= "3.0.0" || reanimatedVersion.includes("3.0.0-"))) {
++  const major = parseInt(reanimatedVersion.split(".")[0], 10);
++  if (reanimatedVersion && major === 3 && (reanimatedVersion >= "3.0.0" || reanimatedVersion.includes("3.0.0-"))) {
+     HAS_REANIMATED_3 = true;
+   }
+ } catch (e) {

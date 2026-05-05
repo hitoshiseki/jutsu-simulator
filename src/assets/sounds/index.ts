@@ -17,4 +17,8 @@ export const Sounds = {
         loop: require('../chidori/soundEffects/ChidoriLoop.mp3') as number,
         throw: require('../chidori/soundEffects/ChidoriThrow.mp3') as number,
     },
+    katon: {
+        ready: require('../katon/soundEffects/KatonReady.mp3') as number,
+        throw: require('../katon/soundEffects/KatonThrow.mp3') as number,
+    },
 };
