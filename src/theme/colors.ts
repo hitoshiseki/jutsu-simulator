@@ -12,35 +12,35 @@ export const COLORS = {
   },
 
   jutsu: {
-    rasengan: {
+    spiralOrb: {
       primary: '#00BFFF',
       secondary: '#1E90FF',
       tertiary: '#87CEEB',
       glow: 'rgba(0, 191, 255, 0.35)',
       background: '#00050F',
     },
-    chidori: {
+    lightningPalm: {
       primary: '#00E5FF',
       secondary: '#FFFFFF',
       tertiary: '#80D8FF',
       glow: 'rgba(0, 229, 255, 0.35)',
       background: '#000A10',
     },
-    fuutonRasenshuriken: {
+    windShuriken: {
       primary: '#BB44FF',
       secondary: '#FF88FF',
       tertiary: '#8844AA',
       glow: 'rgba(187, 68, 255, 0.35)',
       background: '#080010',
     },
-    sharingan: {
+    crimsonEye: {
       primary: '#FF2222',
       secondary: '#FF6600',
       tertiary: '#CC0000',
       glow: 'rgba(255, 34, 34, 0.35)',
       background: '#0F0000',
     },
-    katon: {
+    fireBreath: {
       primary: '#FF5500',
       secondary: '#FFCC00',
       tertiary: '#FF2200',

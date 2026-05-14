@@ -67,7 +67,7 @@ type Props = {
 export const RasenganTutorial: React.FC<Props> = ({ visible, onDismiss }) => (
     <JutsuTutorial
         steps={STEPS}
-        primaryColor={COLORS.jutsu.rasengan.primary}
+        primaryColor={COLORS.jutsu.spiralOrb.primary}
         storageKey={STORAGE_KEY}
         visible={visible}
         onDismiss={onDismiss}

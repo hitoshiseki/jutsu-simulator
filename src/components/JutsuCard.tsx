@@ -4,7 +4,8 @@ import { COLORS } from '@/theme/colors';
 import { Jutsu, JutsuId } from '@/types';
 import { Images } from '@/assets/images';
 import { SharinganAnimation } from '@/animations/SharinganAnimation';
-import { KatonAnimation } from '@/animations/KatonAnimation';
+import { useLanguageContext } from '@/context/LanguageContext';
+import { t } from '@/i18n/translations';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_MARGIN = 12;
@@ -12,33 +13,38 @@ const CARD_SIZE = (SCREEN_WIDTH - CARD_MARGIN * 3) / 2;
 const PREVIEW_SIZE = 80;
 
 const JUTSU_PREVIEW_IMAGE: Partial<Record<JutsuId, number>> = {
-  rasengan: Images.rasengan,
-  chidori: Images.chidori,
-  fuutonRasenshuriken: Images.fuutonRasenshuriken,
+  spiralOrb: Images.spiralOrb,
+  lightningPalm: Images.lightningPalm,
+  windShuriken: Images.windShuriken,
+  fireBreath: Images.fireBreath,
 };
 
 const ANIMATION_NATURAL_SIZE: Partial<Record<JutsuId, number>> = {
-  sharingan: 320,
-  katon: 320,
+  crimsonEye: 320,
 };
 
 const JUTSU_COLORS: Record<JutsuId, { primary: string; glow: string }> = {
-  rasengan: { primary: COLORS.jutsu.rasengan.primary, glow: COLORS.jutsu.rasengan.glow },
-  chidori: { primary: COLORS.jutsu.chidori.primary, glow: COLORS.jutsu.chidori.glow },
-  fuutonRasenshuriken: { primary: COLORS.jutsu.fuutonRasenshuriken.primary, glow: COLORS.jutsu.fuutonRasenshuriken.glow },
-  sharingan: { primary: COLORS.jutsu.sharingan.primary, glow: COLORS.jutsu.sharingan.glow },
-  katon: { primary: COLORS.jutsu.katon.primary, glow: COLORS.jutsu.katon.glow },
+  spiralOrb: { primary: COLORS.jutsu.spiralOrb.primary, glow: COLORS.jutsu.spiralOrb.glow },
+  lightningPalm: { primary: COLORS.jutsu.lightningPalm.primary, glow: COLORS.jutsu.lightningPalm.glow },
+  windShuriken: { primary: COLORS.jutsu.windShuriken.primary, glow: COLORS.jutsu.windShuriken.glow },
+  crimsonEye: { primary: COLORS.jutsu.crimsonEye.primary, glow: COLORS.jutsu.crimsonEye.glow },
+  fireBreath: { primary: COLORS.jutsu.fireBreath.primary, glow: COLORS.jutsu.fireBreath.glow },
 };
 
 interface JutsuCardProps {
   jutsu: Jutsu;
   onPress: (id: JutsuId) => void;
   fullWidth?: boolean;
+  locked?: boolean;
+  lockedLabel?: string;
 }
 
-export const JutsuCard: React.FC<JutsuCardProps> = ({ jutsu, onPress, fullWidth = false }) => {
+export const JutsuCard: React.FC<JutsuCardProps> = ({ jutsu, onPress, fullWidth = false, locked = false, lockedLabel }) => {
   const scale = useRef(new Animated.Value(1)).current;
   const glowOpacity = useRef(new Animated.Value(0.3)).current;
+
+  const { language } = useLanguageContext();
+  const jutsuStrings = t(language ?? 'en').jutsus[jutsu.id];
 
   const colors = JUTSU_COLORS[jutsu.id];
 
@@ -80,10 +86,7 @@ export const JutsuCard: React.FC<JutsuCardProps> = ({ jutsu, onPress, fullWidth 
               }
               const natural = ANIMATION_NATURAL_SIZE[jutsu.id] ?? 300;
               const margin = (PREVIEW_SIZE - natural) / 2;
-              const AnimComp =
-
-                jutsu.id === 'sharingan' ? SharinganAnimation :
-                  KatonAnimation;
+              const AnimComp = SharinganAnimation;
               return (
                 <View style={{ marginTop: margin, marginLeft: margin }} pointerEvents="none">
                   <AnimComp />
@@ -91,14 +94,20 @@ export const JutsuCard: React.FC<JutsuCardProps> = ({ jutsu, onPress, fullWidth 
               );
             })()}
           </View>
-          <Text style={[styles.name, { color: colors.primary }]}>{jutsu.name?.toUpperCase()}</Text>
-          <Text style={styles.kanji}>{jutsu.kanji}</Text>
+          <Text style={[styles.name, { color: colors.primary }]}>{jutsuStrings.name.toUpperCase()}</Text>
           <Text style={styles.rank}>{jutsu.rank}</Text>
-          <Text style={styles.user} numberOfLines={1}>{jutsu.user}</Text>
+          <Text style={styles.user} numberOfLines={1}>{jutsuStrings.user}</Text>
         </View>
 
         <View style={[styles.cornerTL, { backgroundColor: colors.primary }]} />
         <View style={[styles.cornerBR, { backgroundColor: colors.primary }]} />
+
+        {locked && (
+          <View style={styles.lockedOverlay} pointerEvents="none">
+            <Text style={styles.lockedIcon}>🔒</Text>
+            {lockedLabel ? <Text style={styles.lockedLabel}>{lockedLabel}</Text> : null}
+          </View>
+        )}
       </Animated.View>
     </Pressable>
   );
@@ -178,5 +187,22 @@ const styles = StyleSheet.create({
     width: 14,
     height: 3,
     borderTopLeftRadius: 3,
+  },
+  lockedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  lockedIcon: {
+    fontSize: 32,
+  },
+  lockedLabel: {
+    fontSize: 11,
+    color: COLORS.text.primary,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
 });

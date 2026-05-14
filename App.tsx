@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Knewave_400Regular } from '@expo-google-fonts/knewave';
 import { SoundProvider } from './src/context/SoundContext';
 import { LanguageProvider } from './src/context/LanguageContext';
+import { MonetizationProvider } from './src/context/MonetizationContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
 export default function App () {
@@ -16,7 +17,9 @@ export default function App () {
       <SafeAreaProvider>
         <LanguageProvider>
           <SoundProvider>
-            <AppNavigator />
+            <MonetizationProvider>
+              <AppNavigator />
+            </MonetizationProvider>
           </SoundProvider>
         </LanguageProvider>
       </SafeAreaProvider>

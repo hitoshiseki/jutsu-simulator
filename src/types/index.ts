@@ -1,13 +1,10 @@
-export type JutsuId = 'rasengan' | 'chidori' | 'fuutonRasenshuriken' | 'sharingan' | 'katon';
+export type JutsuId = 'spiralOrb' | 'lightningPalm' | 'windShuriken' | 'crimsonEye' | 'fireBreath';
 
 export interface Jutsu {
   id: JutsuId;
-  name: string;
-  kanji: string;
-  user: string;
   rank: string;
-  description: string;
   emoji: string;
+  defaultLocked?: boolean;
 }
 
 export type RootStackParamList = {

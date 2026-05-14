@@ -67,7 +67,7 @@ type Props = {
 export const FuutonRasenshurikenTutorial: React.FC<Props> = ({ visible, onDismiss }) => (
     <JutsuTutorial
         steps={STEPS}
-        primaryColor={COLORS.jutsu.fuutonRasenshuriken.primary}
+        primaryColor={COLORS.jutsu.windShuriken.primary}
         storageKey={STORAGE_KEY}
         visible={visible}
         onDismiss={onDismiss}

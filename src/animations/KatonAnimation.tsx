@@ -8,6 +8,12 @@ import {
   Dimensions,
 } from 'react-native';
 import {
+  useSharedValue,
+  withTiming,
+  cancelAnimation,
+  Easing as ReaEasing,
+} from 'react-native-reanimated';
+import {
   createAudioPlayer,
   setAudioModeAsync,
   requestRecordingPermissionsAsync,
@@ -22,9 +28,29 @@ import KatonFlameParticles from '@/animations/KatonFlameParticles';
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 const BLOW_ALPHA = 0.1;
-const BLOW_THRESHOLD = 0.15;
+const BLOW_DB_FLOOR = -30;
+const BLOW_DB_CEIL = -5;
+const BLOW_ON_THRESHOLD = 0.35;
+const BLOW_OFF_THRESHOLD = 0.2;
 const MIC_INTERVAL_MS = 80;
-const MIC_START_DELAY_MS = 3000;
+const MIC_START_DELAY_MS = 1200;
+const READY_TO_MIC_GAP_MS = 120;
+
+const PLAYBACK_AUDIO_MODE = {
+  playsInSilentMode: true,
+  allowsRecording: false,
+  interruptionMode: 'doNotMix' as const,
+};
+
+const RECORDING_AUDIO_MODE = {
+  playsInSilentMode: true,
+  allowsRecording: true,
+  interruptionMode: 'doNotMix' as const,
+};
+
+function clamp01 (value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
 
 export interface KatonAnimationRef {
   cleanup: () => void;
@@ -57,13 +83,13 @@ export const KatonAnimation = React.forwardRef<KatonAnimationRef, Props>(
     const { soundEnabled } = useSoundContext();
     const soundEnabledRef = useRef(soundEnabled);
 
-    // JS-thread animated values for container position + rotation
+    // JS-thread animated values for container position
     const containerX = useRef(new Animated.Value(SCREEN_W / 2)).current;
     const containerY = useRef(new Animated.Value(SCREEN_H / 2)).current;
-    const rotationValue = useRef(new Animated.Value(0)).current;
 
+    // blowIntensity lives on UI thread (Reanimated) so Skia worklets can read it
+    const blowIntensity = useSharedValue(0);
     // Native-driver animated values
-    const blowIntensity = useRef(new Animated.Value(0)).current;
     const touchOpacity = useRef(new Animated.Value(0)).current;
     const glowScale = useRef(new Animated.Value(1)).current;
 
@@ -72,16 +98,14 @@ export const KatonAnimation = React.forwardRef<KatonAnimationRef, Props>(
     const isBlowingRef = useRef(false);
     const touchOriginRef = useRef({ x: 0, y: 0 });
     const lowPassRef = useRef(0);
+    const micActiveRef = useRef(false);
+    const micWarmupRef = useRef(0);
     const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const meterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const blowAnimRef = useRef<Animated.CompositeAnimation | null>(null);
     const glowLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
     // Sound
     const readySoundRef = useRef<AudioPlayer | null>(null);
-    const throwSoundRef = useRef<AudioPlayer | null>(null);
-    const throwLoopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const throwLoopActiveRef = useRef(false);
 
     // Mic recorder
     const audioRecorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
@@ -94,16 +118,18 @@ export const KatonAnimation = React.forwardRef<KatonAnimationRef, Props>(
     useEffect(() => {
       let mounted = true;
       const load = async () => {
-        await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
+        try {
+          await setAudioModeAsync(PLAYBACK_AUDIO_MODE);
+        } catch {
+          // Keep going so players still initialize even if audio mode setup fails transiently.
+        }
         if (!mounted) return;
-        readySoundRef.current = createAudioPlayer(Sounds.katon.ready, { keepAudioSessionActive: true });
-        throwSoundRef.current = createAudioPlayer(Sounds.katon.throw, { keepAudioSessionActive: true });
+        readySoundRef.current = createAudioPlayer(Sounds.fireBreath.ready, { keepAudioSessionActive: true });
       };
       load();
       return () => {
         mounted = false;
         readySoundRef.current?.remove();
-        throwSoundRef.current?.remove();
       };
     }, []);
 
@@ -127,7 +153,8 @@ export const KatonAnimation = React.forwardRef<KatonAnimationRef, Props>(
 
     const playSound = useCallback(async (sound: AudioPlayer | null) => {
       if (!soundEnabledRef.current || !sound) return;
-      try { await sound.seekTo(0); sound.play(); } catch { }
+      try { await sound.seekTo(0); } catch { }
+      try { sound.play(); } catch { }
     }, []);
 
     const stopSound = useCallback((sound: AudioPlayer | null) => {
@@ -135,94 +162,66 @@ export const KatonAnimation = React.forwardRef<KatonAnimationRef, Props>(
       try { sound.pause(); } catch { }
     }, []);
 
-    const startThrowLoop = useCallback(() => {
-      if (throwLoopActiveRef.current) return;
-      throwLoopActiveRef.current = true;
-
-      const playNext = async () => {
-        if (!throwLoopActiveRef.current) return;
-        if (!soundEnabledRef.current || !throwSoundRef.current) {
-          throwLoopTimeoutRef.current = setTimeout(playNext, 800);
-          return;
-        }
-        try {
-          await throwSoundRef.current.seekTo(0);
-          throwSoundRef.current.play();
-          throwLoopTimeoutRef.current = setTimeout(playNext, 800);
-        } catch {
-          throwLoopTimeoutRef.current = setTimeout(playNext, 800);
-        }
-      };
-      playNext();
-    }, []);
-
-    const stopThrowLoop = useCallback(() => {
-      throwLoopActiveRef.current = false;
-      if (throwLoopTimeoutRef.current !== null) {
-        clearTimeout(throwLoopTimeoutRef.current);
-        throwLoopTimeoutRef.current = null;
-      }
-      stopSound(throwSoundRef.current);
-    }, [stopSound]);
-
     const startMic = useCallback(async () => {
-      if (!isTouchingRef.current) return;
+      if (!isTouchingRef.current || micActiveRef.current) return;
       try {
-        // Ensure the pre-charge sound cannot deactivate the audio session while recording starts.
-        stopSound(readySoundRef.current);
         const { granted } = await requestRecordingPermissionsAsync();
         console.log('Mic permission granted:', granted);
         if (!granted || !isTouchingRef.current) return;
+        await setAudioModeAsync(RECORDING_AUDIO_MODE);
         await audioRecorder.prepareToRecordAsync({ ...RecordingPresets.LOW_QUALITY, isMeteringEnabled: true });
         audioRecorder.record();
+        micActiveRef.current = true;
+        micWarmupRef.current = 0;
+        lowPassRef.current = 0;
         console.log('Mic recording started');
         meterIntervalRef.current = setInterval(() => {
           if (!isTouchingRef.current) return;
+          // Skip the first ~640ms of samples to let the readySound echo fade
+          if (micWarmupRef.current < 8) {
+            micWarmupRef.current++;
+            return;
+          }
           const status = audioRecorder.getStatus();
           if (!status.isRecording) {
-            console.log('Mic recorder stopped unexpectedly; attempting to resume');
-            try { audioRecorder.record(); } catch (resumeError) { console.log('Mic resume failed:', resumeError); }
+            console.log('Mic recorder not recording; waiting next interval');
             return;
           }
           const metering = (status as { metering?: number }).metering;
           if (metering !== undefined && metering !== null) {
-            const linear = Math.pow(10, 0.05 * metering);
-            lowPassRef.current = BLOW_ALPHA * linear + (1 - BLOW_ALPHA) * lowPassRef.current;
-            console.log('Metering:', metering.toFixed(1), 'Linear:', linear.toFixed(3), 'Low-pass:', lowPassRef.current.toFixed(3));
-            if (lowPassRef.current > BLOW_THRESHOLD) {
-              blowAnimRef.current?.stop();
-              blowAnimRef.current = Animated.timing(blowIntensity, {
-                toValue: 1,
-                duration: 100,
-                useNativeDriver: true,
-              });
-              blowAnimRef.current.start();
+            const normalized = clamp01((metering - BLOW_DB_FLOOR) / (BLOW_DB_CEIL - BLOW_DB_FLOOR));
+            lowPassRef.current = BLOW_ALPHA * normalized + (1 - BLOW_ALPHA) * lowPassRef.current;
+            console.log('Metering dB:', metering.toFixed(1), 'Norm:', normalized.toFixed(3), 'Low-pass:', lowPassRef.current.toFixed(3));
+
+            cancelAnimation(blowIntensity);
+            blowIntensity.value = withTiming(lowPassRef.current, { duration: 100 });
+
+            if (lowPassRef.current > BLOW_ON_THRESHOLD) {
+              cancelAnimation(blowIntensity);
+              blowIntensity.value = withTiming(1, { duration: 100 });
 
               if (!isBlowingRef.current) {
                 isBlowingRef.current = true;
-                startThrowLoop();
               }
-            } else {
-              blowAnimRef.current?.stop();
-              blowAnimRef.current = Animated.timing(blowIntensity, {
-                toValue: 0,
+            } else if (lowPassRef.current < BLOW_OFF_THRESHOLD) {
+              cancelAnimation(blowIntensity);
+              blowIntensity.value = withTiming(0, {
                 duration: 500,
-                easing: Easing.out(Easing.quad),
-                useNativeDriver: true,
+                easing: ReaEasing.out(ReaEasing.quad),
               });
-              blowAnimRef.current.start();
 
               if (isBlowingRef.current) {
                 isBlowingRef.current = false;
-                stopThrowLoop();
               }
             }
           }
         }, MIC_INTERVAL_MS);
       } catch (error) {
+        micActiveRef.current = false;
+        setAudioModeAsync(PLAYBACK_AUDIO_MODE).catch(() => undefined);
         console.log('Error starting mic:', error);
       }
-    }, [audioRecorder, blowIntensity, startThrowLoop, stopSound, stopThrowLoop]);
+    }, [audioRecorder]);
 
     const stopMic = useCallback(() => {
       if (meterIntervalRef.current !== null) {
@@ -230,6 +229,8 @@ export const KatonAnimation = React.forwardRef<KatonAnimationRef, Props>(
         meterIntervalRef.current = null;
       }
       try { audioRecorder.stop(); } catch { }
+      setAudioModeAsync(PLAYBACK_AUDIO_MODE).catch(() => undefined);
+      micActiveRef.current = false;
       lowPassRef.current = 0;
     }, [audioRecorder]);
 
@@ -242,18 +243,15 @@ export const KatonAnimation = React.forwardRef<KatonAnimationRef, Props>(
         readyTimerRef.current = null;
       }
       stopMic();
-      stopThrowLoop();
       stopSound(readySoundRef.current);
       stopGlowLoop();
 
-      blowAnimRef.current?.stop();
-      Animated.parallel([
-        Animated.timing(blowIntensity, { toValue: 0, duration: 300, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(touchOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-      ]).start();
+      cancelAnimation(blowIntensity);
+      blowIntensity.value = withTiming(0, { duration: 300 });
+      Animated.timing(touchOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start();
 
       onPowerReset?.();
-    }, [blowIntensity, touchOpacity, stopMic, stopThrowLoop, stopSound, stopGlowLoop, onPowerReset]);
+    }, [blowIntensity, touchOpacity, stopMic, stopSound, stopGlowLoop, onPowerReset]);
 
     useImperativeHandle(ref, () => ({
       cleanup: resetTouch,
@@ -270,7 +268,6 @@ export const KatonAnimation = React.forwardRef<KatonAnimationRef, Props>(
           touchOriginRef.current = { x, y };
           containerX.setValue(x);
           containerY.setValue(y);
-          rotationValue.setValue(0);
           isTouchingRef.current = true;
 
           Animated.timing(touchOpacity, {
@@ -282,9 +279,12 @@ export const KatonAnimation = React.forwardRef<KatonAnimationRef, Props>(
           startGlowLoop();
           playSound(readySoundRef.current);
 
+          const readyDurationMs = Math.max(0, Math.round((readySoundRef.current?.duration ?? 0) * 1000));
+          const micDelay = Math.max(MIC_START_DELAY_MS, readyDurationMs + READY_TO_MIC_GAP_MS);
+
           readyTimerRef.current = setTimeout(() => {
             startMic();
-          }, MIC_START_DELAY_MS);
+          }, micDelay);
 
           onPowerStart?.();
         },
@@ -295,13 +295,6 @@ export const KatonAnimation = React.forwardRef<KatonAnimationRef, Props>(
           containerX.setValue(x);
           containerY.setValue(y);
 
-          const dx = x - touchOriginRef.current.x;
-          const dy = y - touchOriginRef.current.y;
-          const mag = Math.sqrt(dx * dx + dy * dy);
-          if (mag > 20) {
-            const angle = (Math.atan2(dx, -dy) * 180) / Math.PI;
-            rotationValue.setValue(angle);
-          }
         },
 
         onPanResponderRelease: resetTouch,
@@ -315,14 +308,6 @@ export const KatonAnimation = React.forwardRef<KatonAnimationRef, Props>(
           style={[
             styles.container,
             {
-              transform: [
-                {
-                  rotate: rotationValue.interpolate({
-                    inputRange: [-180, 180],
-                    outputRange: ['-180deg', '180deg'],
-                  }),
-                },
-              ],
               left: containerX,
               top: containerY,
             },

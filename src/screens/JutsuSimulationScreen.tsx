@@ -1,10 +1,9 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react';
-import { StyleSheet, Text, View, Pressable, StatusBar, Animated, Easing } from 'react-native';
+import { StyleSheet, Text, View, Pressable, StatusBar, Animated, Easing, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { COLORS } from '@/theme/colors';
-import { getJutsu } from '@/data/jutsus';
 import { RootStackParamList, JutsuId } from '@/types';
 import { useHaptics } from '@/hooks/useHaptics';
 import { SoundToggle } from '@/components/SoundToggle';
@@ -15,9 +14,10 @@ import { KatonTutorial, checkKatonTutorialSeen } from '@/components/KatonTutoria
 import { RasenganAnimation, type RasenganAnimationRef } from '@/animations/RasenganAnimation';
 import { ChidoriAnimation, type ChidoriAnimationRef } from '@/animations/ChidoriAnimation';
 import { FuutonRasenshurikenAnimation, type FuutonRasenshurikenAnimationRef } from '@/animations/FuutonRasenshurikenAnimation';
-import { SharinganAnimation } from '@/animations/SharinganAnimation';
+import { SharinganSkiaAnimation } from '@/animations/SharinganSkiaAnimation';
 import { KatonAnimation, type KatonAnimationRef } from '@/animations/KatonAnimation';
 import { useLanguageContext } from '@/context/LanguageContext';
+import { useMonetization } from '@/context/MonetizationContext';
 import { t } from '@/i18n/translations';
 
 type Props = {
@@ -26,27 +26,27 @@ type Props = {
 };
 
 const BG_COLORS: Record<JutsuId, string> = {
-  rasengan: COLORS.jutsu.rasengan.background,
-  chidori: COLORS.jutsu.chidori.background,
-  fuutonRasenshuriken: COLORS.jutsu.fuutonRasenshuriken.background,
-  sharingan: COLORS.jutsu.sharingan.background,
-  katon: COLORS.jutsu.katon.background,
+  spiralOrb: COLORS.jutsu.spiralOrb.background,
+  lightningPalm: COLORS.jutsu.lightningPalm.background,
+  windShuriken: COLORS.jutsu.windShuriken.background,
+  crimsonEye: COLORS.jutsu.crimsonEye.background,
+  fireBreath: COLORS.jutsu.fireBreath.background,
 };
 
 const JUTSU_COLORS: Record<JutsuId, { primary: string }> = {
-  rasengan: { primary: COLORS.jutsu.rasengan.primary },
-  chidori: { primary: COLORS.jutsu.chidori.primary },
-  fuutonRasenshuriken: { primary: COLORS.jutsu.fuutonRasenshuriken.primary },
-  sharingan: { primary: COLORS.jutsu.sharingan.primary },
-  katon: { primary: COLORS.jutsu.katon.primary },
+  spiralOrb: { primary: COLORS.jutsu.spiralOrb.primary },
+  lightningPalm: { primary: COLORS.jutsu.lightningPalm.primary },
+  windShuriken: { primary: COLORS.jutsu.windShuriken.primary },
+  crimsonEye: { primary: COLORS.jutsu.crimsonEye.primary },
+  fireBreath: { primary: COLORS.jutsu.fireBreath.primary },
 };
 
 const HAPTIC_FNS: Record<JutsuId, keyof ReturnType<typeof useHaptics>> = {
-  rasengan: 'impactMedium',
-  chidori: 'chidoriPulse',
-  fuutonRasenshuriken: 'impactHeavy',
-  sharingan: 'impactLight',
-  katon: 'notificationSuccess',
+  spiralOrb: 'impactMedium',
+  lightningPalm: 'chidoriPulse',
+  windShuriken: 'impactHeavy',
+  crimsonEye: 'impactLight',
+  fireBreath: 'notificationSuccess',
 };
 
 type AnimRef = React.RefObject<RasenganAnimationRef | ChidoriAnimationRef | FuutonRasenshurikenAnimationRef | KatonAnimationRef | null>;
@@ -59,26 +59,26 @@ function JutsuAnimationComponent ({ jutsuId, onPowerStart, onPowerReset, animRef
   lang: 'en' | 'pt';
 }) {
   switch (jutsuId) {
-    case 'rasengan': return <RasenganAnimation ref={animRef as React.RefObject<RasenganAnimationRef>} lang={lang} onPowerStart={onPowerStart} onPowerReset={onPowerReset} />;
-    case 'chidori': return <ChidoriAnimation ref={animRef as React.RefObject<ChidoriAnimationRef>} lang={lang} onPowerStart={onPowerStart} onPowerReset={onPowerReset} />;
-    case 'fuutonRasenshuriken': return <FuutonRasenshurikenAnimation ref={animRef as React.RefObject<FuutonRasenshurikenAnimationRef>} lang={lang} onPowerStart={onPowerStart} onPowerReset={onPowerReset} />;
-    case 'sharingan': return <SharinganAnimation />;
-    case 'katon': return <KatonAnimation ref={animRef as React.RefObject<KatonAnimationRef>} lang={lang} onPowerStart={onPowerStart} onPowerReset={onPowerReset} />;
+    case 'spiralOrb': return <RasenganAnimation ref={animRef as React.RefObject<RasenganAnimationRef>} lang={lang} onPowerStart={onPowerStart} onPowerReset={onPowerReset} />;
+    case 'lightningPalm': return <ChidoriAnimation ref={animRef as React.RefObject<ChidoriAnimationRef>} lang={lang} onPowerStart={onPowerStart} onPowerReset={onPowerReset} />;
+    case 'windShuriken': return <FuutonRasenshurikenAnimation ref={animRef as React.RefObject<FuutonRasenshurikenAnimationRef>} lang={lang} onPowerStart={onPowerStart} onPowerReset={onPowerReset} />;
+    case 'crimsonEye': return <SharinganSkiaAnimation lang={lang} />;
+    case 'fireBreath': return <KatonAnimation ref={animRef as React.RefObject<KatonAnimationRef>} lang={lang} onPowerStart={onPowerStart} onPowerReset={onPowerReset} />;
   }
 }
 
 // Jutsus with custom full-screen interactions (no activate button needed)
-const CUSTOM_INTERACTION_JUTSUS: JutsuId[] = ['rasengan', 'chidori', 'fuutonRasenshuriken', 'katon'];
+const CUSTOM_INTERACTION_JUTSUS: JutsuId[] = ['spiralOrb', 'lightningPalm', 'windShuriken', 'crimsonEye', 'fireBreath'];
 // Jutsus with a first-run tutorial
-const TUTORIAL_JUTSUS: JutsuId[] = ['rasengan', 'chidori', 'fuutonRasenshuriken', 'katon'];
+const TUTORIAL_JUTSUS: JutsuId[] = ['spiralOrb', 'lightningPalm', 'windShuriken', 'fireBreath'];
 
 export const JutsuSimulationScreen: React.FC<Props> = ({ navigation, route }) => {
   const { language } = useLanguageContext();
+  const { showInterstitial, consumeTrialUse, isInterstitialBusy } = useMonetization();
   const lang: 'en' | 'pt' = language ?? 'en';
   const strings = t(lang).tutorial;
 
   const { jutsuId } = route.params;
-  const jutsu = getJutsu(jutsuId);
   const haptics = useHaptics();
 
   const nameOpacity = useRef(new Animated.Value(0)).current;
@@ -97,13 +97,18 @@ export const JutsuSimulationScreen: React.FC<Props> = ({ navigation, route }) =>
     return unsubscribe;
   }, [navigation]);
 
+  useEffect(() => {
+    consumeTrialUse(jutsuId);
+    showInterstitial();
+  }, [jutsuId, consumeTrialUse, showInterstitial]);
+
   // Show tutorial on first entry for supported jutsus
   useEffect(() => {
     if (!TUTORIAL_JUTSUS.includes(jutsuId)) return;
     const check =
-      jutsuId === 'rasengan' ? checkRasenganTutorialSeen :
-        jutsuId === 'chidori' ? checkChidoriTutorialSeen :
-          jutsuId === 'fuutonRasenshuriken' ? checkFuutonRasenshurikenTutorialSeen :
+      jutsuId === 'spiralOrb' ? checkRasenganTutorialSeen :
+        jutsuId === 'lightningPalm' ? checkChidoriTutorialSeen :
+          jutsuId === 'windShuriken' ? checkFuutonRasenshurikenTutorialSeen :
             checkKatonTutorialSeen;
     check().then(seen => {
       if (!seen) setShowTutorial(true);
@@ -158,21 +163,33 @@ export const JutsuSimulationScreen: React.FC<Props> = ({ navigation, route }) =>
       <StatusBar barStyle="light-content" />
 
       {/* Full-screen animation layer */}
-      <View style={styles.animationFill}>
-        <JutsuAnimationComponent
-          jutsuId={jutsuId}
-          animRef={animRef}
-          lang={lang}
-          onPowerStart={handlePowerStart}
-          onPowerReset={handlePowerReset}
-        />
-      </View>
+      {!isInterstitialBusy && (
+        <View style={styles.animationFill}>
+          <JutsuAnimationComponent
+            jutsuId={jutsuId}
+            animRef={animRef}
+            lang={lang}
+            onPowerStart={handlePowerStart}
+            onPowerReset={handlePowerReset}
+          />
+        </View>
+      )}
+
+      {isInterstitialBusy && (
+        <View style={styles.loadingOverlay} pointerEvents="auto">
+          <ActivityIndicator size="large" color={JUTSU_COLORS[jutsuId].primary} />
+          <Text style={styles.loadingText}>{t(lang).simulation.loadingAd}</Text>
+        </View>
+      )}
 
       {/* Floating UI overlay */}
       <SafeAreaView style={styles.overlay} pointerEvents="box-none">
         {/* Top bar */}
         <Animated.View style={[styles.topBar, { opacity: topBarOpacity }]} pointerEvents="box-none">
-          <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
             <Text style={styles.backLabel}>{strings.back}</Text>
           </Pressable>
           <View style={styles.topBarRight}>
@@ -190,8 +207,7 @@ export const JutsuSimulationScreen: React.FC<Props> = ({ navigation, route }) =>
           style={[styles.nameOverlay, { opacity: nameOpacity, transform: [{ translateY: nameTranslateY }] }]}
           pointerEvents="none"
         >
-          <Text style={[styles.jutsuName, { color: colors.primary }]}>{jutsu?.name}</Text>
-          <Text style={styles.jutsuKanji}>{jutsu?.kanji}</Text>
+          <Text style={[styles.jutsuName, { color: colors.primary }]}>{t(lang).jutsus[jutsuId].name}</Text>
           <View style={[styles.titleLine, { backgroundColor: colors.primary }]} />
         </Animated.View>
 
@@ -210,16 +226,16 @@ export const JutsuSimulationScreen: React.FC<Props> = ({ navigation, route }) =>
       </SafeAreaView>
 
       {/* First-time tutorial overlays */}
-      {jutsuId === 'rasengan' && (
+      {jutsuId === 'spiralOrb' && (
         <RasenganTutorial visible={showTutorial} onDismiss={() => setShowTutorial(false)} />
       )}
-      {jutsuId === 'chidori' && (
+      {jutsuId === 'lightningPalm' && (
         <ChidoriTutorial visible={showTutorial} onDismiss={() => setShowTutorial(false)} />
       )}
-      {jutsuId === 'fuutonRasenshuriken' && (
+      {jutsuId === 'windShuriken' && (
         <FuutonRasenshurikenTutorial visible={showTutorial} onDismiss={() => setShowTutorial(false)} />
       )}
-      {jutsuId === 'katon' && (
+      {jutsuId === 'fireBreath' && (
         <KatonTutorial visible={showTutorial} onDismiss={() => setShowTutorial(false)} />
       )}
     </View>
@@ -297,4 +313,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   activateText: { fontSize: 14, fontWeight: '800', letterSpacing: 3 },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    zIndex: 10,
+  },
+  loadingText: {
+    color: COLORS.text.secondary,
+    fontSize: 13,
+    letterSpacing: 2,
+    fontWeight: '600',
+  },
 });

@@ -1,255 +1,209 @@
-import React, { useEffect, useMemo } from 'react';
-import { Animated, Easing, StyleSheet, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { StyleSheet, Dimensions } from 'react-native';
+import {
+  Canvas,
+  Atlas,
+  Skia,
+  TileMode,
+  type SkRSXform,
+} from '@shopify/react-native-skia';
+import {
+  useSharedValue,
+  useDerivedValue,
+  useFrameCallback,
+} from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
 
 type Props = {
-    blowIntensity: Animated.Value;
+  blowIntensity: SharedValue<number>;
 };
 
-type FlameParticle = {
-    layer: 'core' | 'mid' | 'smoke';
-    riseMax: number;
-    coneAngle: number;
-    sideSign: number;
-    duration: number;
-    delay: number;
-    widthPx: number;
-    color: string;
-    progress: Animated.Value;
-};
+// [x, y, vx, vy, life, maxLife, type, size]
+const STRIDE = 8;
+const N_CORE = 80;
+const N_MID = 140;
+const N_OUTER = 70;
+const N_EDGE = 50;
+const N = N_CORE + N_MID + N_OUTER + N_EDGE; // 340
 
-const CORE_COUNT = 20;
-const MID_COUNT = 50;
-const SMOKE_COUNT = 30;
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+const CANVAS_SIDE_BLEED = Math.max(220, SCREEN_W * 0.35);
+const CANVAS_W = SCREEN_W + CANVAS_SIDE_BLEED * 2;
+const CANVAS_H = SCREEN_H + 20;
+const ORIGIN_X = CANVAS_W / 2;
+const ORIGIN_Y = CANVAS_H - 10;
+const TEX_SIZE = 64;
+const TEX_HALF = TEX_SIZE / 2;
 
-const AVG_CORE_DURATION = 600;
-const AVG_MID_DURATION = 750;
-const AVG_SMOKE_DURATION = 950;
+function randRange (min: number, max: number): number {
+  'worklet';
+  return min + Math.random() * (max - min);
+}
 
-const CORE_PALETTE = ['#FFFFFF', '#FFFDE0', '#FFF176', '#FFE033'];
-const MID_PALETTE = ['#FF8C00', '#FF5500', '#FF3300', '#FF6A00', '#FFAA00'];
-const SMOKE_PALETTE = ['#CC1100', '#8E1B00', '#4A0A00', '#2B0A00'];
+function spawnParticle (
+  data: Float32Array,
+  base: number,
+  type: number,
+  intensity: number,
+): void {
+  'worklet';
+  // Spawn near the finger point; cone opening is driven by velocity over time.
+  const spawnSpread = type === 0 ? 2 : type === 1 ? 4 : type === 2 ? 6 : 8;
+  data[base] = randRange(-spawnSpread, spawnSpread);
+  data[base + 1] = randRange(-3, 3);
 
-const rand = (min: number, max: number) => min + Math.random() * (max - min);
+  let vyMin: number, vyMax: number, vxRange: number;
+  let sMin: number, sMax: number, mLife: number;
 
-const createParticles = (): FlameParticle[] => {
-    const particles: FlameParticle[] = [];
+  if (type === 0) {
+    vyMin = -1250; vyMax = -900; vxRange = 45; sMin = 3; sMax = 7; mLife = 0.48;
+  } else if (type === 1) {
+    vyMin = -1050; vyMax = -680; vxRange = 70; sMin = 4; sMax = 9; mLife = 0.70;
+  } else if (type === 2) {
+    vyMin = -860; vyMax = -480; vxRange = 95; sMin = 5; sMax = 11; mLife = 0.95;
+  } else {
+    vyMin = -700; vyMax = -320; vxRange = 120; sMin = 6; sMax = 13; mLife = 1.20;
+  }
 
-    for (let i = 0; i < CORE_COUNT; i++) {
-        particles.push({
-            layer: 'core',
-            riseMax: rand(400, 600),
-            coneAngle: rand(0.03, 0.07),
-            sideSign: i % 2 === 0 ? 1 : -1,
-            duration: rand(500, 700),
-            delay: (i / CORE_COUNT) * AVG_CORE_DURATION,
-            widthPx: rand(4, 8),
-            color: CORE_PALETTE[i % CORE_PALETTE.length],
-            progress: new Animated.Value(0),
-        });
-    }
+  data[base + 2] = randRange(-vxRange, vxRange);
+  data[base + 3] = randRange(vyMin, vyMax) * Math.max(0.3, intensity);
+  data[base + 4] = 1.0;
+  data[base + 5] = mLife * randRange(0.8, 1.2);
+  data[base + 7] = randRange(sMin, sMax);
+}
 
-    for (let i = 0; i < MID_COUNT; i++) {
-        particles.push({
-            layer: 'mid',
-            riseMax: rand(250, 480),
-            coneAngle: rand(0.07, 0.16),
-            sideSign: i % 2 === 0 ? 1 : -1,
-            duration: rand(600, 900),
-            delay: (i / MID_COUNT) * AVG_MID_DURATION,
-            widthPx: rand(8, 18),
-            color: MID_PALETTE[i % MID_PALETTE.length],
-            progress: new Animated.Value(0),
-        });
-    }
-
-    for (let i = 0; i < SMOKE_COUNT; i++) {
-        particles.push({
-            layer: 'smoke',
-            riseMax: rand(150, 320),
-            coneAngle: rand(0.12, 0.22),
-            sideSign: i % 2 === 0 ? 1 : -1,
-            duration: rand(800, 1100),
-            delay: (i / SMOKE_COUNT) * AVG_SMOKE_DURATION,
-            widthPx: rand(14, 28),
-            color: SMOKE_PALETTE[i % SMOKE_PALETTE.length],
-            progress: new Animated.Value(0),
-        });
-    }
-
-    return particles;
-};
+function initParticles (): Float32Array {
+  const data = new Float32Array(N * STRIDE);
+  for (let i = 0; i < N; i++) {
+    const base = i * STRIDE;
+    const type =
+      i < N_CORE ? 0
+        : i < N_CORE + N_MID ? 1
+          : i < N_CORE + N_MID + N_OUTER ? 2
+            : 3;
+    data[base + 4] = 0;
+    data[base + 5] = 0.5;
+    data[base + 6] = type;
+    data[base + 7] = 14;
+  }
+  return data;
+}
 
 const KatonFlameParticles: React.FC<Props> = ({ blowIntensity }) => {
-    const particles = useMemo(createParticles, []);
+  const particleData = useSharedValue(initParticles());
+  const frameTick = useSharedValue(0);
 
-    useEffect(() => {
-        const loops = particles.map((p) => {
-            const loop = Animated.loop(
-                Animated.sequence([
-                    Animated.timing(p.progress, { toValue: 0, duration: 0, useNativeDriver: true }),
-                    Animated.delay(p.delay),
-                    Animated.timing(p.progress, {
-                        toValue: 1,
-                        duration: p.duration,
-                        easing: Easing.bezier(0.25, 0.1, 0.7, 1.0),
-                        useNativeDriver: true,
-                    }),
-                ])
-            );
-            loop.start();
-            return loop;
-        });
-
-        return () => { loops.forEach((l) => l.stop()); };
-    }, [particles]);
-
-    return (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            {/* Outer nozzle cone */}
-            <Animated.View
-                style={[
-                    styles.nozzleCone,
-                    {
-                        opacity: blowIntensity.interpolate({
-                            inputRange: [0, 0.2, 1],
-                            outputRange: [0, 0.4, 0.85],
-                        }),
-                        transform: [
-                            {
-                                scaleX: blowIntensity.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [0.5, 1.2],
-                                }),
-                            },
-                            {
-                                scaleY: blowIntensity.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [0.6, 1.4],
-                                }),
-                            },
-                        ],
-                    },
-                ]}
-                pointerEvents="none"
-            />
-
-            {/* White-hot tip */}
-            <Animated.View
-                style={[
-                    styles.nozzleTip,
-                    {
-                        opacity: blowIntensity.interpolate({
-                            inputRange: [0, 0.15, 1],
-                            outputRange: [0, 0.7, 1],
-                        }),
-                    },
-                ]}
-                pointerEvents="none"
-            />
-
-            {particles.map((p, index) => {
-                const rise = p.riseMax;
-                const cone = p.coneAngle;
-                const sign = p.sideSign;
-
-                const alphaOverLife =
-                    p.layer === 'core'
-                        ? p.progress.interpolate({
-                              inputRange: [0, 0.05, 0.4, 0.85, 1],
-                              outputRange: [0, 0.9, 1.0, 0.7, 0],
-                          })
-                        : p.layer === 'mid'
-                        ? p.progress.interpolate({
-                              inputRange: [0, 0.1, 0.45, 0.8, 1],
-                              outputRange: [0, 0.6, 0.95, 0.5, 0],
-                          })
-                        : p.progress.interpolate({
-                              inputRange: [0, 0.15, 0.5, 0.75, 1],
-                              outputRange: [0, 0.35, 0.65, 0.3, 0],
-                          });
-
-                const effectiveOpacity = Animated.multiply(blowIntensity, alphaOverLife);
-
-                // Monotonic forward travel — no bounce
-                const translateY = p.progress.interpolate({
-                    inputRange: [0, 0.08, 0.5, 1.0],
-                    outputRange: [0, -rise * 0.15, -rise * 0.75, -rise],
-                });
-
-                // Cone spread proportional to Y traveled — no oscillation
-                const translateX = p.progress.interpolate({
-                    inputRange: [0, 0.08, 0.5, 1.0],
-                    outputRange: [
-                        0,
-                        Math.tan(cone) * rise * 0.15 * sign,
-                        Math.tan(cone) * rise * 0.75 * sign,
-                        Math.tan(cone) * rise * sign,
-                    ],
-                });
-
-                // Elongated oval: tall thin streak on launch → flat smoke puff at end
-                const scaleX = p.progress.interpolate({
-                    inputRange: [0, 0.15, 0.6, 1],
-                    outputRange: [0, 0.3, 0.6, 0.45],
-                });
-                const scaleY = p.progress.interpolate({
-                    inputRange: [0, 0.1, 0.55, 1],
-                    outputRange: [0, 2.8, 1.8, 0.6],
-                });
-
-                const w = p.widthPx;
-
-                return (
-                    <Animated.View
-                        key={index}
-                        style={[
-                            styles.particle,
-                            {
-                                width: w,
-                                height: w,
-                                left: -w / 2,
-                                top: -w / 2,
-                                borderRadius: w,
-                                backgroundColor: p.color,
-                                opacity: effectiveOpacity,
-                                transform: [
-                                    { translateX },
-                                    { translateY },
-                                    { scaleX },
-                                    { scaleY },
-                                ],
-                            },
-                        ]}
-                        pointerEvents="none"
-                    />
-                );
-            })}
-        </View>
+  // Fire-gradient particle texture generated at runtime — no PNG needed
+  const particleTexture = useMemo(() => {
+    const surface = Skia.Surface.Make(TEX_SIZE, TEX_SIZE);
+    if (!surface) return null;
+    const canvas = surface.getCanvas();
+    const paint = Skia.Paint();
+    paint.setAntiAlias(true);
+    const shader = Skia.Shader.MakeRadialGradient(
+      { x: TEX_HALF, y: TEX_HALF },
+      TEX_HALF,
+      [
+        Skia.Color('white'),          // white-hot core
+        Skia.Color('#FFE033'),        // bright yellow
+        Skia.Color('#FF6600'),        // orange
+        Skia.Color('#CC1100'),        // deep red
+        Skia.Color('transparent'),   // soft transparent edge
+      ],
+      [0.0, 0.18, 0.50, 0.78, 1.0],
+      TileMode.Clamp,
     );
+    paint.setShader(shader);
+    canvas.drawCircle(TEX_HALF, TEX_HALF, TEX_HALF, paint);
+    return surface.makeImageSnapshot();
+  }, []);
+
+  const sprites = useMemo(
+    () => Array.from({ length: N }, () => Skia.XYWHRect(0, 0, TEX_SIZE, TEX_SIZE)),
+    [],
+  );
+
+  useFrameCallback((info) => {
+    const dt = Math.min(info.timeSincePreviousFrame ?? 16, 50) / 1000;
+    const intensity = blowIntensity.value;
+    const data = particleData.value;
+
+    for (let i = 0; i < N; i++) {
+      const b = i * STRIDE;
+      const type = data[b + 6];
+
+      if (data[b + 4] <= 0) {
+        if (intensity > 0.05) spawnParticle(data, b, type, intensity);
+        continue;
+      }
+
+      data[b + 4] -= dt / data[b + 5];
+      data[b] += data[b + 2] * dt;
+      data[b + 1] += data[b + 3] * dt;
+
+      const travelY = Math.max(0, -data[b + 1]);
+      const coneFactor = Math.min(1, travelY / (SCREEN_H * 0.65));
+      const outwardDir = data[b + 2] >= 0 ? 1 : -1;
+
+      // Expand into a cone as particles move away from the finger.
+      data[b + 2] += outwardDir * (180 + type * 40) * coneFactor * dt;
+      data[b + 2] += (Math.random() - 0.5) * (22 + type * 4) * dt;
+
+      // Keep a strong vertical jet while slowly losing speed.
+      data[b + 3] *= 1 - 0.10 * dt;
+    }
+
+    particleData.value = data;
+    frameTick.value += 1;
+  });
+
+  const atlasTransforms = useDerivedValue(() => {
+    frameTick.value;
+    const d = particleData.value;
+    const transforms: SkRSXform[] = [];
+    for (let i = 0; i < N; i++) {
+      const b = i * STRIDE;
+      if (d[b + 4] <= 0) {
+        transforms.push(Skia.RSXform(0, 0, 0, 0));
+        continue;
+      }
+      const px = d[b] + ORIGIN_X;
+      const py = d[b + 1] + ORIGIN_Y;
+      const travelY = Math.max(0, -d[b + 1]);
+      const grow = Math.min(5.5, 0.60 + travelY / (SCREEN_H * 0.22));
+      const fillBoost = 1 + Math.min(1.6, travelY / (SCREEN_H * 0.45));
+      const life = Math.max(0, d[b + 4]);
+      const endShrink = 0.9 + life * 0.1;
+      const scale = ((d[b + 7] * 2) / TEX_SIZE) * grow * fillBoost * endShrink;
+      transforms.push(
+        Skia.RSXform(scale, 0, px - scale * TEX_HALF, py - scale * TEX_HALF),
+      );
+    }
+    return transforms;
+  });
+
+  if (!particleTexture) return null;
+
+  return (
+    <Canvas style={styles.canvas} pointerEvents="none">
+      <Atlas
+        image={particleTexture}
+        sprites={sprites}
+        transforms={atlasTransforms}
+        blendMode="screen"
+      />
+    </Canvas>
+  );
 };
 
 const styles = StyleSheet.create({
-    nozzleCone: {
-        position: 'absolute',
-        left: -6,
-        top: -60,
-        width: 12,
-        height: 60,
-        borderRadius: 6,
-        backgroundColor: 'rgba(255, 180, 50, 0.6)',
-    },
-    nozzleTip: {
-        position: 'absolute',
-        left: -3,
-        top: -18,
-        width: 6,
-        height: 18,
-        borderRadius: 4,
-        backgroundColor: 'rgba(255, 255, 220, 0.95)',
-    },
-    particle: {
-        position: 'absolute',
-    },
+  canvas: {
+    position: 'absolute',
+    width: CANVAS_W,
+    height: CANVAS_H,
+    left: -ORIGIN_X,
+    top: -(CANVAS_H - 10),
+  },
 });
 
 export default KatonFlameParticles;

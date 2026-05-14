@@ -67,7 +67,7 @@ type Props = {
 export const ChidoriTutorial: React.FC<Props> = ({ visible, onDismiss }) => (
     <JutsuTutorial
         steps={STEPS}
-        primaryColor={COLORS.jutsu.chidori.primary}
+        primaryColor={COLORS.jutsu.lightningPalm.primary}
         storageKey={STORAGE_KEY}
         visible={visible}
         onDismiss={onDismiss}

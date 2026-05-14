@@ -9,7 +9,7 @@ import { t } from '@/i18n/translations';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-const RASENGAN_IMG = Images.rasengan;
+const RASENGAN_IMG = Images.spiralOrb;
 
 const RESET_AFTER_MS = 3000;
 
@@ -113,12 +113,12 @@ export const RasenganAnimation = React.forwardRef<RasenganAnimationRef, Props>(
       const loadSounds = async () => {
         await setAudioModeAsync({ playsInSilentMode: true });
         if (!mounted) return;
-        chargeSoundRef.current = createAudioPlayer(Sounds.rasengan.charge);
-        spinSound1Ref.current = createAudioPlayer(Sounds.rasengan.spin);
-        spinSound2Ref.current = createAudioPlayer(Sounds.rasengan.spin);
-        readySoundRef.current = createAudioPlayer(Sounds.rasengan.ready);
-        throw1SoundRef.current = createAudioPlayer(Sounds.rasengan.throw1);
-        throw2SoundRef.current = createAudioPlayer(Sounds.rasengan.throw2);
+        chargeSoundRef.current = createAudioPlayer(Sounds.spiralOrb.charge);
+        spinSound1Ref.current = createAudioPlayer(Sounds.spiralOrb.spin);
+        spinSound2Ref.current = createAudioPlayer(Sounds.spiralOrb.spin);
+        readySoundRef.current = createAudioPlayer(Sounds.spiralOrb.ready);
+        throw1SoundRef.current = createAudioPlayer(Sounds.spiralOrb.throw1);
+        throw2SoundRef.current = createAudioPlayer(Sounds.spiralOrb.throw2);
       };
       loadSounds();
       return () => {

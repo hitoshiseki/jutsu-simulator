@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
         color: COLORS.text.accent,
         fontWeight: '900',
         letterSpacing: 8,
-        textShadowColor: COLORS.jutsu.rasengan.glow,
+        textShadowColor: COLORS.jutsu.spiralOrb.glow,
         textShadowRadius: 24,
     },
     title: {

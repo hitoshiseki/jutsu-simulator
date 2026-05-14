@@ -2,6 +2,33 @@ export type Lang = 'en' | 'pt';
 
 export const TRANSLATIONS = {
     en: {
+        jutsus: {
+            spiralOrb: {
+                name: 'Spiral Orb',
+                description: 'A spinning sphere of energy formed in the palm. Shatters anything it touches.',
+                user: 'Wind Adept',
+            },
+            lightningPalm: {
+                name: 'Lightning Palm',
+                description: 'Lightning energy concentrated in the hand. Pierces through any defense.',
+                user: 'Storm Adept',
+            },
+            windShuriken: {
+                name: 'Wind Shuriken',
+                description: 'A wind-charged spinning blade that severs the energy network.',
+                user: 'Wind Adept',
+            },
+            crimsonEye: {
+                name: 'Crimson Eye',
+                description: 'A bloodline eye that copies techniques and casts powerful illusions.',
+                user: 'Bloodline Heir',
+            },
+            fireBreath: {
+                name: 'Fire Breath',
+                description: 'A massive fireball expelled from the mouth. A clan signature.',
+                user: 'Flame Adept',
+            },
+        },
         home: {
             subtitle: 'Choose your technique',
             footerHint: 'Tap a jutsu to activate',
@@ -22,6 +49,7 @@ export const TRANSLATIONS = {
         simulation: {
             tapToStart: 'TAP TO START',
             shakeToStart: 'SHAKE TO START',
+            loadingAd: 'Loading...',
         },
         languageSelection: {
             kanji: '言語',
@@ -32,8 +60,54 @@ export const TRANSLATIONS = {
             pt: 'Português',
             change: 'CHANGE LANGUAGE',
         },
+        paywall: {
+            locked: 'LOCKED',
+            unlockTitle: 'Unlock this Jutsu',
+            unlockSubtitle: 'Choose how you want to access this technique',
+            watchAd: 'Watch ad for 1 session',
+            unlockIndividual: 'Buy this jutsu',
+            removeAds: 'Remove Ads',
+            removeAdsDesc: 'No more ads, jutsus still locked',
+            shinobiPack: 'Shinobi Pack',
+            bestValue: 'BEST VALUE',
+            shinobiPackDesc: 'Unlock all jutsus + remove ads',
+            restorePurchases: 'Restore Purchases',
+            close: 'Close',
+            adFailed: 'Ad failed to load. Try again.',
+            purchaseFailed: 'Purchase failed. Try again.',
+            purchaseSuccess: 'Unlocked!',
+            adWatched1Session: 'Unlocked for this session',
+            adFreeLabel: 'Free · 1 session',
+        },
     },
     pt: {
+        jutsus: {
+            spiralOrb: {
+                name: 'Orbe Espiral',
+                description: 'Uma esfera giratória de energia formada na palma. Estilhaça tudo que toca.',
+                user: 'Adepto do Vento',
+            },
+            lightningPalm: {
+                name: 'Palma do Relâmpago',
+                description: 'Energia elétrica concentrada na mão. Atravessa qualquer defesa.',
+                user: 'Adepto da Tempestade',
+            },
+            windShuriken: {
+                name: 'Shuriken do Vento',
+                description: 'Lâmina giratória carregada de vento que rompe a rede de energia.',
+                user: 'Adepto do Vento',
+            },
+            crimsonEye: {
+                name: 'Olho Carmesim',
+                description: 'Olho de linhagem que copia técnicas e lança poderosas ilusões.',
+                user: 'Herdeiro de Linhagem',
+            },
+            fireBreath: {
+                name: 'Sopro de Fogo',
+                description: 'Uma enorme bola de fogo expelida pela boca. Marca de clã.',
+                user: 'Adepto da Chama',
+            },
+        },
         home: {
             subtitle: 'Escolha sua técnica',
             footerHint: 'Toque em um jutsu para ativar',
@@ -54,6 +128,7 @@ export const TRANSLATIONS = {
         simulation: {
             tapToStart: 'TOQUE PARA COMEÇAR',
             shakeToStart: 'AGITE PARA COMEÇAR',
+            loadingAd: 'Carregando...',
         },
         languageSelection: {
             kanji: '言語',
@@ -63,6 +138,25 @@ export const TRANSLATIONS = {
             en: 'English',
             pt: 'Português',
             change: 'ALTERAR IDIOMA',
+        },
+        paywall: {
+            locked: 'BLOQUEADO',
+            unlockTitle: 'Desbloqueie este Jutsu',
+            unlockSubtitle: 'Escolha como quer acessar esta técnica',
+            watchAd: 'Assistir vídeo (1 sessão)',
+            unlockIndividual: 'Comprar este jutsu',
+            removeAds: 'Remover Anúncios',
+            removeAdsDesc: 'Sem mais anúncios, jutsus continuam bloqueados',
+            shinobiPack: 'Shinobi Pack',
+            bestValue: 'MELHOR VALOR',
+            shinobiPackDesc: 'Desbloqueia todos os jutsus + remove anúncios',
+            restorePurchases: 'Restaurar Compras',
+            close: 'Fechar',
+            adFailed: 'Anúncio falhou. Tente novamente.',
+            purchaseFailed: 'Compra falhou. Tente novamente.',
+            purchaseSuccess: 'Desbloqueado!',
+            adWatched1Session: 'Desbloqueado nesta sessão',
+            adFreeLabel: 'Grátis · 1 sessão',
         },
     },
 } as const;

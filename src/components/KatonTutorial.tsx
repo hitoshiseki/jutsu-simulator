@@ -55,7 +55,7 @@ type Props = {
 export const KatonTutorial: React.FC<Props> = ({ visible, onDismiss }) => (
     <JutsuTutorial
         steps={STEPS}
-        primaryColor={COLORS.jutsu.katon.primary}
+        primaryColor={COLORS.jutsu.fireBreath.primary}
         storageKey={STORAGE_KEY}
         visible={visible}
         onDismiss={onDismiss}

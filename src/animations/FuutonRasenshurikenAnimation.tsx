@@ -9,7 +9,7 @@ import { t } from '@/i18n/translations';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-const FUUTON_IMG = Images.fuutonRasenshuriken;
+const FUUTON_IMG = Images.windShuriken;
 
 const RESET_AFTER_MS = 3000;
 
@@ -111,12 +111,12 @@ export const FuutonRasenshurikenAnimation = React.forwardRef<FuutonRasenshuriken
             const loadSounds = async () => {
                 await setAudioModeAsync({ playsInSilentMode: true });
                 if (!mounted) return;
-                chargeSoundRef.current = createAudioPlayer(Sounds.fuutonRasenshuriken.charge);
-                spinSound1Ref.current = createAudioPlayer(Sounds.fuutonRasenshuriken.spin);
-                spinSound2Ref.current = createAudioPlayer(Sounds.fuutonRasenshuriken.spin);
-                readySoundRef.current = createAudioPlayer(Sounds.fuutonRasenshuriken.ready);
-                throw1SoundRef.current = createAudioPlayer(Sounds.fuutonRasenshuriken.throw1);
-                throw2SoundRef.current = createAudioPlayer(Sounds.fuutonRasenshuriken.throw2);
+                chargeSoundRef.current = createAudioPlayer(Sounds.windShuriken.charge);
+                spinSound1Ref.current = createAudioPlayer(Sounds.windShuriken.spin);
+                spinSound2Ref.current = createAudioPlayer(Sounds.windShuriken.spin);
+                readySoundRef.current = createAudioPlayer(Sounds.windShuriken.ready);
+                throw1SoundRef.current = createAudioPlayer(Sounds.windShuriken.throw1);
+                throw2SoundRef.current = createAudioPlayer(Sounds.windShuriken.throw2);
             };
             loadSounds();
             return () => {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, StatusBar, ImageBackground, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -6,8 +6,10 @@ import { COLORS } from '@/theme/colors';
 import { JUTSUS } from '@/data/jutsus';
 import { JutsuId, RootStackParamList } from '@/types';
 import { JutsuCard } from '@/components/JutsuCard';
+import { PaywallModal } from '@/components/PaywallModal';
 import { SoundToggle } from '@/components/SoundToggle';
 import { useLanguageContext } from '@/context/LanguageContext';
+import { useMonetization } from '@/context/MonetizationContext';
 import { t } from '@/i18n/translations';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { Images } from '@/assets/images';
@@ -20,6 +22,8 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { language } = useLanguageContext();
   const lang = language ?? 'en';
   const strings = t(lang);
+  const { isLocked } = useMonetization();
+  const [paywallJutsu, setPaywallJutsu] = useState<JutsuId | null>(null);
 
   const titleGlow = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -34,13 +38,22 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleJutsuPress = useCallback(
     (id: JutsuId) => {
+      if (isLocked(id)) {
+        setPaywallJutsu(id);
+        return;
+      }
       navigation.navigate('JutsuSimulation', { jutsuId: id });
     },
-    [navigation]
+    [navigation, isLocked]
   );
 
-  const gridJutsus = JUTSUS.slice(0, 4);
-  const lastJutsu = JUTSUS[4];
+  const handleUnlocked = useCallback(() => {
+    const id = paywallJutsu;
+    setPaywallJutsu(null);
+    if (id) navigation.navigate('JutsuSimulation', { jutsuId: id });
+  }, [paywallJutsu, navigation]);
+
+  const visibleJutsus = JUTSUS.filter((j) => j.id !== 'crimsonEye');
 
   return (
     <ImageBackground source={Images.background} style={styles.bg} resizeMode="cover">
@@ -59,22 +72,28 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
           {/* Decorative row */}
           <View style={styles.decorRow}>
-            <Text style={styles.decorText}>━━━ 木ノ葉隠れの里 ━━━</Text>
+            <Text style={styles.decorText}>━━━━━━━━━━━━━━━</Text>
           </View>
 
           {/* 2-column grid */}
           <View style={styles.grid}>
-            {gridJutsus.map((jutsu) => (
-              <JutsuCard key={jutsu.id} jutsu={jutsu} onPress={handleJutsuPress} />
+            {visibleJutsus.map((jutsu) => (
+              <JutsuCard
+                key={jutsu.id}
+                jutsu={jutsu}
+                onPress={handleJutsuPress}
+                locked={isLocked(jutsu.id)}
+                lockedLabel={strings.paywall.locked}
+              />
             ))}
           </View>
 
-          {/* Last card full-width */}
-          {lastJutsu && (
-            <View style={styles.fullWidthRow}>
-              <JutsuCard jutsu={lastJutsu} onPress={handleJutsuPress} fullWidth />
-            </View>
-          )}
+          <PaywallModal
+            visible={paywallJutsu !== null}
+            jutsuId={paywallJutsu}
+            onClose={() => setPaywallJutsu(null)}
+            onUnlocked={handleUnlocked}
+          />
 
           {/* Footer */}
           <View style={styles.footer}>
@@ -152,10 +171,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     justifyContent: 'center',
   },
-  fullWidthRow: {
-    paddingHorizontal: 6,
-    alignItems: 'center',
-  },
   footer: {
     alignItems: 'center',
     paddingTop: 24,
@@ -168,7 +183,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 11,
-    color: COLORS.text.muted,
+    color: COLORS.text.primary,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },

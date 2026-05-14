@@ -9,7 +9,7 @@ import { t } from '@/i18n/translations';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-const CHIDORI_IMG = Images.chidori;
+const CHIDORI_IMG = Images.lightningPalm;
 
 const RESET_AFTER_MS = 3000;
 // ~12fps flicker — fast enough to look like electricity
@@ -113,8 +113,8 @@ export const ChidoriAnimation = React.forwardRef<ChidoriAnimationRef, Props>(
       const loadSounds = async () => {
         await setAudioModeAsync({ playsInSilentMode: true });
         if (!mounted) return;
-        loopSoundRef.current = createAudioPlayer(Sounds.chidori.loop);
-        throwSoundRef.current = createAudioPlayer(Sounds.chidori.throw);
+        loopSoundRef.current = createAudioPlayer(Sounds.lightningPalm.loop);
+        throwSoundRef.current = createAudioPlayer(Sounds.lightningPalm.throw);
       };
       loadSounds();
       return () => {
