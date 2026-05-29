@@ -27,6 +27,40 @@ const config: ExpoConfig = {
     infoPlist: {
       UIBackgroundModes: [],
       ITSAppUsesNonExemptEncryption: false,
+      NSMotionUsageDescription:
+        'Used to detect when you shake your device to trigger a technique.',
+    },
+    privacyManifests: {
+      // App serves personalized ads via AdMob and requests ATT, so the app
+      // DOES track. Declare it honestly to match the App Privacy questionnaire.
+      NSPrivacyTracking: true,
+      NSPrivacyTrackingDomains: [
+        'googleads.g.doubleclick.net',
+        'google.com',
+        'googleadservices.com',
+        'googlesyndication.com',
+        'app-measurement.com',
+      ],
+      NSPrivacyCollectedDataTypes: [
+        {
+          // Advertising identifier (IDFA) used by AdMob for tracking.
+          NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeDeviceID',
+          NSPrivacyCollectedDataTypeLinked: false,
+          NSPrivacyCollectedDataTypeTracking: true,
+          NSPrivacyCollectedDataTypePurposes: [
+            'NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising',
+          ],
+        },
+        {
+          // Coarse product-interaction / crash-free usage data for ad delivery.
+          NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeProductInteraction',
+          NSPrivacyCollectedDataTypeLinked: false,
+          NSPrivacyCollectedDataTypeTracking: true,
+          NSPrivacyCollectedDataTypePurposes: [
+            'NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising',
+          ],
+        },
+      ],
     },
     bundleIdentifier: 'com.hitoshi.NarutoJutsusOnHand',
     appleTeamId: '958ZAK3Q3A',
@@ -62,7 +96,7 @@ const config: ExpoConfig = {
       'expo-audio',
       {
         microphonePermission:
-          'Used to detect when you blow into the microphone to ignite the Katon flame.',
+          'Used to detect when you blow into the microphone to ignite the fire technique.',
       },
     ],
     [

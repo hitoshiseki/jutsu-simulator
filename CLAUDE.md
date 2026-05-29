@@ -1,6 +1,6 @@
 # Jutsu Simulator — Agent Instructions
 
-Naruto-themed React Native app (Expo managed) where users simulate ninja techniques with animations, sound, and haptics. Supports English and Portuguese.
+Ninja-technique simulator built with React Native (Expo managed) where users trigger stylized energy/elemental techniques with animations, sound, and haptics. Supports English and Portuguese. Note: technique IDs and display names are intentionally generic/original (no licensed franchise references) — keep them that way.
 
 ## Commands
 
@@ -30,7 +30,7 @@ src/
 
 ## Key Conventions
 
-- **Jutsu IDs** are a union type: `'rasengan' | 'chidori' | 'rasenshuriken' | 'sharingan' | 'katon'`. Add new entries to `src/types/index.ts` and `src/data/jutsus.ts` first.
+- **Jutsu IDs** are a union type: `'spiralOrb' | 'lightningPalm' | 'windShuriken' | 'crimsonEye' | 'fireBreath'`. Add new entries to `src/types/index.ts` and `src/data/jutsus.ts` first. (IDs are deliberately neutral; the animation component files still use legacy names like `RasenganAnimation` — do not assume id === component name.)
 - **All Animated calls must use `useNativeDriver: true`** — the codebase enforces this everywhere for 60fps.
 - **Sound pattern**: keep a `soundEnabledRef` in sync with the context boolean, check the ref (not state) inside async callbacks to avoid stale closures.
 - **i18n**: access strings via `t(language ?? 'en')` from `src/i18n/translations.ts`. Both `'en'` and `'pt'` keys must always stay in sync.
