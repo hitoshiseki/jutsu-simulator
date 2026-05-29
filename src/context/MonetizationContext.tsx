@@ -1,38 +1,60 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import Purchases, { CustomerInfo, PurchasesOffering } from 'react-native-purchases';
 import mobileAds, {
     AdEventType,
+    AdsConsent,
+    AdsConsentStatus,
     InterstitialAd,
     RewardedAd,
     RewardedAdEventType,
     TestIds,
 } from 'react-native-google-mobile-ads';
+import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import { JutsuId } from '@/types';
 
-const REVENUECAT_APPLE_KEY = 'appl_PLACEHOLDER';
-const REVENUECAT_GOOGLE_KEY = 'goog_PLACEHOLDER';
+type MonetizationExtra = {
+    revenueCatAppleKey?: string;
+    revenueCatGoogleKey?: string;
+    admobInterstitialIosUnitId?: string;
+    admobInterstitialAndroidUnitId?: string;
+    admobRewardedIosUnitId?: string;
+    admobRewardedAndroidUnitId?: string;
+};
+
+const extra = (Constants.expoConfig?.extra ?? {}) as MonetizationExtra;
+
+const REVENUECAT_APPLE_KEY = extra.revenueCatAppleKey ?? 'appl_PLACEHOLDER';
+const REVENUECAT_GOOGLE_KEY = extra.revenueCatGoogleKey ?? 'goog_PLACEHOLDER';
 
 const PREMIUM_ENTITLEMENT = 'premium';
 const NO_ADS_ENTITLEMENT = 'no_ads';
 const UNLOCK_ENTITLEMENT_PREFIX = 'unlock_';
 
-export const SHINOBI_PACK_PRODUCT_ID = 'com.hitoshiseki.jutsusimulator.shinobi_pack';
-export const NO_ADS_PRODUCT_ID = 'com.hitoshiseki.jutsusimulator.no_ads';
+export const SHINOBI_PACK_PRODUCT_ID = 'com.hitoshi.NarutoJutsusOnHand.shinobi_pack';
+export const NO_ADS_PRODUCT_ID = 'com.hitoshi.NarutoJutsusOnHand.no_ads';
 
-const INTERSTITIAL_UNIT_ID = __DEV__
-    ? TestIds.INTERSTITIAL
-    : Platform.select({
-        ios: 'ca-app-pub-XXXXX/XXXXX',
-        android: 'ca-app-pub-XXXXX/XXXXX',
-    }) ?? TestIds.INTERSTITIAL;
+const isPlaceholderUnit = (v?: string) => !v || v.includes('XXXXX');
 
-const REWARDED_UNIT_ID = __DEV__
-    ? TestIds.REWARDED
-    : Platform.select({
-        ios: 'ca-app-pub-XXXXX/XXXXX',
-        android: 'ca-app-pub-XXXXX/XXXXX',
-    }) ?? TestIds.REWARDED;
+const prodInterstitial = Platform.select({
+    ios: extra.admobInterstitialIosUnitId,
+    android: extra.admobInterstitialAndroidUnitId,
+});
+const prodRewarded = Platform.select({
+    ios: extra.admobRewardedIosUnitId,
+    android: extra.admobRewardedAndroidUnitId,
+});
+
+const INTERSTITIAL_UNIT_ID =
+    __DEV__ || isPlaceholderUnit(prodInterstitial)
+        ? TestIds.INTERSTITIAL
+        : (prodInterstitial as string);
+
+const REWARDED_UNIT_ID =
+    __DEV__ || isPlaceholderUnit(prodRewarded)
+        ? TestIds.REWARDED
+        : (prodRewarded as string);
 
 const TRIAL_USES_PER_AD = 2;
 
@@ -49,7 +71,7 @@ interface MonetizationContextValue {
     showRewardedAd: (id: JutsuId) => Promise<boolean>;
     showInterstitial: () => Promise<void>;
     purchaseProduct: (productId: string) => Promise<boolean>;
-    restorePurchases: () => Promise<void>;
+    restorePurchases: () => Promise<{ restored: boolean; isPremium: boolean; hasNoAds: boolean; unlockedCount: number }>;
     consumeTrialUse: (id: JutsuId) => void;
 }
 
@@ -68,7 +90,7 @@ const MonetizationContext = createContext<MonetizationContextValue>({
     showRewardedAd: noop,
     showInterstitial: async () => { },
     purchaseProduct: noop,
-    restorePurchases: async () => { },
+    restorePurchases: async () => ({ restored: false, isPremium: false, hasNoAds: false, unlockedCount: 0 }),
     consumeTrialUse: () => { },
 });
 
@@ -108,6 +130,22 @@ export const MonetizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         (async () => {
             try {
+                if (Platform.OS === 'ios') {
+                    try {
+                        await requestTrackingPermissionsAsync();
+                    } catch { }
+                }
+
+                try {
+                    const consentInfo = await AdsConsent.requestInfoUpdate();
+                    if (
+                        consentInfo.isConsentFormAvailable &&
+                        consentInfo.status === AdsConsentStatus.REQUIRED
+                    ) {
+                        await AdsConsent.showForm();
+                    }
+                } catch { }
+
                 await mobileAds().initialize();
             } catch (e) {
                 // AdMob init failed — non-fatal
@@ -273,14 +311,18 @@ export const MonetizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
     }, [offering]);
 
-    const restorePurchases = useCallback(async (): Promise<void> => {
+    const restorePurchases = useCallback(async () => {
         try {
             const info = await Purchases.restorePurchases();
             const { isPremium: prem, hasNoAds: noAds, unlocked } = extractEntitlements(info);
             setIsPremium(prem);
             setHasNoAds(noAds);
             setUnlockedJutsus(unlocked);
-        } catch { }
+            const restored = prem || noAds || unlocked.size > 0;
+            return { restored, isPremium: prem, hasNoAds: noAds, unlockedCount: unlocked.size };
+        } catch {
+            return { restored: false, isPremium: false, hasNoAds: false, unlockedCount: 0 };
+        }
     }, []);
 
     const value = useMemo<MonetizationContextValue>(

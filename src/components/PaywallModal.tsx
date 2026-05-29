@@ -31,6 +31,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({ visible, jutsuId, on
     const { offering, hasNoAds, showRewardedAd, purchaseProduct, restorePurchases } = useMonetization();
     const [busy, setBusy] = useState<'ad' | 'noAds' | 'pack' | 'restore' | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [info, setInfo] = useState<string | null>(null);
 
     const strings = t(language ?? 'en').paywall;
 
@@ -117,8 +118,17 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({ visible, jutsuId, on
     const handleRestore = async () => {
         setBusy('restore');
         setError(null);
-        await restorePurchases();
+        setInfo(null);
+        const result = await restorePurchases();
         setBusy(null);
+        if (result.restored) {
+            setInfo(strings.restoreSuccess);
+            if (jutsuId && (result.isPremium || result.unlockedCount > 0)) {
+                onUnlocked();
+            }
+        } else {
+            setInfo(strings.restoreNothing);
+        }
     };
 
     const orbScale = orbPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] });
@@ -234,6 +244,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({ visible, jutsuId, on
                     </Pressable>
 
                     {error && <Text style={styles.error}>{error}</Text>}
+                    {info && <Text style={styles.info}>{info}</Text>}
 
                     <View style={styles.footer}>
                         <Pressable onPress={handleRestore} disabled={busy !== null} hitSlop={8}>
@@ -453,6 +464,12 @@ const styles = StyleSheet.create({
     },
     error: {
         color: '#FF6B6B',
+        fontSize: 12,
+        textAlign: 'center',
+        marginTop: 4,
+    },
+    info: {
+        color: '#7CE3A5',
         fontSize: 12,
         textAlign: 'center',
         marginTop: 4,

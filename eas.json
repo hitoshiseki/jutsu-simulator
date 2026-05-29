@@ -1,0 +1,88 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development-device": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "REVENUECAT_APPLE_KEY": "$REVENUECAT_APPLE_KEY",
+        "REVENUECAT_GOOGLE_KEY": "$REVENUECAT_GOOGLE_KEY",
+        "ADMOB_IOS_APP_ID": "$ADMOB_IOS_APP_ID",
+        "ADMOB_ANDROID_APP_ID": "$ADMOB_ANDROID_APP_ID",
+        "ADMOB_INTERSTITIAL_IOS_UNIT_ID": "$ADMOB_INTERSTITIAL_IOS_UNIT_ID",
+        "ADMOB_INTERSTITIAL_ANDROID_UNIT_ID": "$ADMOB_INTERSTITIAL_ANDROID_UNIT_ID",
+        "ADMOB_REWARDED_IOS_UNIT_ID": "$ADMOB_REWARDED_IOS_UNIT_ID",
+        "ADMOB_REWARDED_ANDROID_UNIT_ID": "$ADMOB_REWARDED_ANDROID_UNIT_ID"
+      }
+    },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "REVENUECAT_APPLE_KEY": "$REVENUECAT_APPLE_KEY",
+        "REVENUECAT_GOOGLE_KEY": "$REVENUECAT_GOOGLE_KEY",
+        "ADMOB_IOS_APP_ID": "$ADMOB_IOS_APP_ID",
+        "ADMOB_ANDROID_APP_ID": "$ADMOB_ANDROID_APP_ID",
+        "ADMOB_INTERSTITIAL_IOS_UNIT_ID": "$ADMOB_INTERSTITIAL_IOS_UNIT_ID",
+        "ADMOB_INTERSTITIAL_ANDROID_UNIT_ID": "$ADMOB_INTERSTITIAL_ANDROID_UNIT_ID",
+        "ADMOB_REWARDED_IOS_UNIT_ID": "$ADMOB_REWARDED_IOS_UNIT_ID",
+        "ADMOB_REWARDED_ANDROID_UNIT_ID": "$ADMOB_REWARDED_ANDROID_UNIT_ID"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "REVENUECAT_APPLE_KEY": "$REVENUECAT_APPLE_KEY",
+        "REVENUECAT_GOOGLE_KEY": "$REVENUECAT_GOOGLE_KEY",
+        "ADMOB_IOS_APP_ID": "$ADMOB_IOS_APP_ID",
+        "ADMOB_ANDROID_APP_ID": "$ADMOB_ANDROID_APP_ID",
+        "ADMOB_INTERSTITIAL_IOS_UNIT_ID": "$ADMOB_INTERSTITIAL_IOS_UNIT_ID",
+        "ADMOB_INTERSTITIAL_ANDROID_UNIT_ID": "$ADMOB_INTERSTITIAL_ANDROID_UNIT_ID",
+        "ADMOB_REWARDED_IOS_UNIT_ID": "$ADMOB_REWARDED_IOS_UNIT_ID",
+        "ADMOB_REWARDED_ANDROID_UNIT_ID": "$ADMOB_REWARDED_ANDROID_UNIT_ID"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "REVENUECAT_APPLE_KEY": "$REVENUECAT_APPLE_KEY",
+        "REVENUECAT_GOOGLE_KEY": "$REVENUECAT_GOOGLE_KEY",
+        "ADMOB_IOS_APP_ID": "$ADMOB_IOS_APP_ID",
+        "ADMOB_ANDROID_APP_ID": "$ADMOB_ANDROID_APP_ID",
+        "ADMOB_INTERSTITIAL_IOS_UNIT_ID": "$ADMOB_INTERSTITIAL_IOS_UNIT_ID",
+        "ADMOB_INTERSTITIAL_ANDROID_UNIT_ID": "$ADMOB_INTERSTITIAL_ANDROID_UNIT_ID",
+        "ADMOB_REWARDED_IOS_UNIT_ID": "$ADMOB_REWARDED_IOS_UNIT_ID",
+        "ADMOB_REWARDED_ANDROID_UNIT_ID": "$ADMOB_REWARDED_ANDROID_UNIT_ID"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "hitoshiseki@gmail.com",
+        "ascAppId": "439199247",
+        "appleTeamId": "958ZAK3Q3A",
+        "ascApiKeyPath": "./credentials/AuthKey_J5XJARGDHB.p8",
+        "ascApiKeyId": "J5XJARGDHB",
+        "ascApiKeyIssuerId": "69a6de72-e0d7-47e3-e053-5b8c7c11a4d1"
+      },
+      "android": {
+        "track": "internal"
+      }
+    }
+  }
+}
